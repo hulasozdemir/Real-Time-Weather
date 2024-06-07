@@ -1,6 +1,6 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import from_json, col
-from pyspark.sql.types import StructType, StructField, StringType, FloatType, IntegerType, ArrayType
+from pyspark.sql.functions import from_json, col, from_unixtime
+from pyspark.sql.types import StructType, StructField, StringType, FloatType, IntegerType, ArrayType, TimestampType
 
 # Define schema for weather data
 weather_schema = StructType([
@@ -46,39 +46,25 @@ weather_schema = StructType([
     StructField("cod", IntegerType(), True)
 ])
 
-# Start Spark session with Kafka and Elasticsearch packages
+# Initialize the Spark session
 spark = SparkSession.builder \
     .appName("WeatherDataProcessing") \
-    .config("spark.jars.packages", "org.apache.spark:spark-sql-kafka-0-10_2.12:3.4.1,org.elasticsearch:elasticsearch-spark-30_2.12:8.14.0") \
+    .config("spark.jars.packages", "org.apache.spark:spark-sql-kafka-0-10_2.12:3.4.3,org.elasticsearch:elasticsearch-spark-30_2.12:8.14.0") \
     .getOrCreate()
 
 # Read data from Kafka
 df = spark.readStream \
     .format("kafka") \
     .option("kafka.bootstrap.servers", "localhost:9092") \
-    .option("subscribe", "weather_topic") \
+    .option("subscribe", "weather") \
     .load()
 
-print("OK1")
-# Debugging: Show raw Kafka data
-raw_kafka_df = df.selectExpr("CAST(value AS STRING)")
-raw_kafka_df.writeStream \
-    .format("console") \
-    .start() \
-    .awaitTermination(10)
-
 # Process data
-weather_df = raw_kafka_df.select(from_json(col("value"), weather_schema).alias("weather_data"))
-print("OK2")
-# Debugging: Show parsed weather data
-parsed_weather_df = weather_df.select("weather_data.*")
-parsed_weather_df.writeStream \
-    .format("console") \
-    .start() \
-    .awaitTermination(10)
+weather_df = df.selectExpr("CAST(value AS STRING) as value") \
+    .select(from_json(col("value"), weather_schema).alias("weather_data"))
 
+weather_df = weather_df.withColumn("weather_data.dt", from_unixtime(col("weather_data.dt")).cast(TimestampType()))
 # Extract weather_data fields
-# Write data to Elasticsearch
 weather_data_df = weather_df.select("weather_data.*")
 
 # Write data to Elasticsearch
@@ -88,7 +74,7 @@ query = weather_data_df.writeStream \
     .option("checkpointLocation", "/Users/uozdemir/realtime_weather/spark-checkpoint") \
     .option("es.nodes", "localhost:9200") \
     .option("es.index.auto.create", "true") \
-    .option("es.resource", "weather_index/_doc") \
+    .option("es.resource", "weather_index/") \
     .start()
 
 query.awaitTermination()
