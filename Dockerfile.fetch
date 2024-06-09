@@ -1,0 +1,32 @@
+# Use the official Spark image with version 3.4.3 and Scala 2.12
+FROM bitnami/spark:3.4.3
+
+# Set the environment variables
+ENV SPARK_HOME /opt/bitnami/spark
+ENV PATH $SPARK_HOME/bin:$PATH
+ENV SPARK_CONF_DIR $SPARK_HOME/conf
+ENV SPARK_LOCAL_DIRS /tmp/spark
+
+# Create a user-specific directory for Ivy cache and set it as an environment variable
+RUN mkdir -p /opt/spark-ivy2/cache
+RUN mkdir -p /opt/spark-ivy2/repository
+ENV IVY2_HOME /opt/spark-ivy2
+
+# Copy Ivy settings file
+COPY ivysettings.xml /opt/spark-ivy2/ivysettings.xml
+
+# Copy Hadoop configuration to disable Kerberos authentication
+COPY core-site.xml $HADOOP_CONF_DIR/core-site.xml
+
+# Copy your application code
+COPY process.py /opt/spark-apps/
+
+# Set the working directory
+WORKDIR /opt/spark-apps/
+
+# Install necessary Python packages
+RUN pip install --no-cache-dir pyspark kafka-python
+
+# Run the Spark application
+ENTRYPOINT ["spark-submit", "--packages", "org.apache.spark:spark-sql-kafka-0-10_2.12:3.4.3,org.elasticsearch:elasticsearch-spark-30_2.12:8.14.0,org.mongodb.spark:mongo-spark-connector_2.12:10.3.0", "--conf", "spark.jars.ivy=/opt/spark-ivy2", "--conf", "spark.driver.extraJavaOptions=-Divy.cache.dir=/opt/spark-ivy2/cache -Divy.settings.file=/opt/spark-ivy2/ivysettings.xml", "process.py"]
+

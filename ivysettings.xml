@@ -1,0 +1,10 @@
+<ivysettings>
+    <settings defaultResolver="local"/>
+    <caches defaultBasedir="/opt/spark-ivy2/cache"/>
+    <resolvers>
+        <filesystem name="local">
+            <ivy pattern="/opt/spark-ivy2/repository/[organisation]/[module]/[revision]/ivy-[revision].xml"/>
+            <artifact pattern="/opt/spark-ivy2/repository/[organisation]/[module]/[revision]/[type]s/[artifact]-[revision].[ext]"/>
+        </filesystem>
+    </resolvers>
+</ivysettings>

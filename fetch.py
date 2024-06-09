@@ -20,10 +20,17 @@ API_KEY = read_api_key(api_key_file)
 # Example usage: Print the API key (for testing purposes, remove or comment out in production)
 
 
+time.sleep(30)
+
 producer = KafkaProducer(
-    bootstrap_servers='localhost:9092',
+    bootstrap_servers=os.getenv('KAFKA_BOOTSTRAP_SERVERS', 'localhost:9092'),
     value_serializer=lambda v: json.dumps(v).encode('utf-8')
 )
+
+# producer = KafkaProducer(
+#     bootstrap_servers='localhost:9092',
+#     value_serializer=lambda v: json.dumps(v).encode('utf-8')
+# )
 
 LOCATION = 'Vancouver'
 
